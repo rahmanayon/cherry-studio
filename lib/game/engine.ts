@@ -1,351 +1,290 @@
-import { PhysicsEngine } from '@/lib/physics/engine'
-import { PhysicsBody, Vector2D } from '@/lib/physics/types'
-import { AssetManager } from '@/lib/assets/manager'
-import { EnvironmentManager } from '@/lib/environment/manager'
-import { ScoringSystem } from '@/lib/scoring/system'
-import { LevelData, PlacedObject } from '@/lib/levelBuilder/types'
+// Main game engine orchestrating physics, rendering, and game loop
 
-/**
- * Game Engine - orchestrates physics, rendering, scoring, and gameplay
- */
-export class GameEngine {
-  private physicsEngine: PhysicsEngine
-  private assetManager: AssetManager
-  private environmentManager: EnvironmentManager
-  private scoringSystem: ScoringSystem
-  private levelData: LevelData | null = null
-  private gameObjects: Map<string, { object: PlacedObject; body: PhysicsBody }> = new Map()
-  private isRunning: boolean = false
-  private isPaused: boolean = false
-  private canvas: HTMLCanvasElement | null = null
-  private ctx: CanvasRenderingContext2D | null = null
-  private frameTime: number = 0
-  private gameSpeed: number = 1.0
-  private camera: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 }
+import { PhysicsWorld, PhysicsBody, BoxCollider } from '../physics/engine'
+import { Vector2 } from '../physics/vector2d'
+import { Scene, Entity } from './ecs'
+import { GameState as GameStateType, GameConfig, GameObject, GameEvent } from '../types/game'
 
-  constructor(
-    physics?: PhysicsEngine,
-    assets?: AssetManager,
-    environment?: EnvironmentManager,
-    scoring?: ScoringSystem
-  ) {
-    this.physicsEngine = physics || new PhysicsEngine()
-    this.assetManager = assets || new AssetManager()
-    this.environmentManager = environment || new EnvironmentManager()
-    this.scoringSystem = scoring || new ScoringSystem()
+export class GameStateManager {
+  private currentState: GameStateType = 'menu'
+  private stateCallbacks: Map<GameStateType, Function[]> = new Map()
+
+  constructor() {
+    const states: GameStateType[] = ['menu', 'playing', 'paused', 'gameover', 'levelselect']
+    states.forEach((state) => {
+      this.stateCallbacks.set(state, [])
+    })
   }
 
-  /**
-   * Initialize game with a level
-   */
-  async initializeLevel(levelData: LevelData): Promise<void> {
-    this.levelData = levelData
+  setState(state: GameStateType): void {
+    if (this.currentState !== state) {
+      this.currentState = state
+      const callbacks = this.stateCallbacks.get(state) || []
+      callbacks.forEach((cb) => cb())
+    }
+  }
 
-    // Clear previous state
-    this.gameObjects.clear()
-    this.physicsEngine = new PhysicsEngine(levelData.environment.gravity)
-    this.environmentManager.clear()
+  getState(): GameStateType {
+    return this.currentState
+  }
 
-    // Create physics bodies from level objects
-    levelData.objects.forEach(obj => {
-      const body: PhysicsBody = {
-        id: obj.id,
-        position: { ...obj.position },
-        velocity: { x: 0, y: 0 },
-        acceleration: { x: 0, y: 0 },
-        mass: obj.properties.mass || 1,
-        width: obj.width,
-        height: obj.height,
-        isStatic: obj.type === 'platform' || obj.properties.isStatic || false,
-        rotation: obj.rotation,
-        angularVelocity: 0,
-        restitution: 0.6,
-        friction: 0.8,
+  onStateChange(state: GameStateType, callback: Function): () => void {
+    const callbacks = this.stateCallbacks.get(state) || []
+    callbacks.push(callback)
+    this.stateCallbacks.set(state, callbacks)
+
+    return () => {
+      const index = callbacks.indexOf(callback)
+      if (index > -1) {
+        callbacks.splice(index, 1)
       }
+    }
+  }
+}
 
-      this.physicsEngine.addBody(body)
-      this.gameObjects.set(obj.id, { object: obj, body })
+export class GameEngine {
+  private physics: PhysicsWorld
+  private scene: Scene
+  private stateManager: GameStateManager
+  private gameObjects: Map<string, GameObject> = new Map()
+  private entityBodyMap: Map<string, string> = new Map() // entity id -> body id
+  private eventListeners: Map<string, Function[]> = new Map()
+  private running: boolean = false
+  private deltaTime: number = 0
+  private lastFrameTime: number = 0
+  private fps: number = 60
+  private targetFPS: number = 60
+  private width: number
+  private height: number
+  private backgroundColor: string
+
+  constructor(config: GameConfig) {
+    this.physics = new PhysicsWorld({
+      gravity: config.physics.gravity,
+      damping: config.physics.damping,
+      timeStep: 1 / config.fps,
+      iterations: 4,
+      angularDamping: 0.1,
     })
 
-    // Load assets
-    if (levelData.environment.backgroundId) {
-      await this.assetManager.loadSpriteImage(levelData.environment.backgroundId)
+    this.scene = new Scene()
+    this.stateManager = new GameStateManager()
+    this.targetFPS = config.fps
+    this.width = config.width
+    this.height = config.height
+    this.backgroundColor = config.backgroundColor
+  }
+
+  // Object management
+  addGameObject(object: GameObject): void {
+    this.gameObjects.set(object.id, object)
+
+    // Create physics body if has collider
+    if (object.collider) {
+      const body = new PhysicsBody(
+        object.id,
+        object.position,
+        object.mass,
+        object.friction,
+        object.restitution
+      )
+
+      const collider = new BoxCollider(
+        { x: 0, y: 0 },
+        object.collider.width || 32,
+        object.collider.height || 32
+      )
+
+      this.physics.addBody(object.id, body, collider)
+      this.entityBodyMap.set(object.id, object.id)
     }
-
-    // Initialize scoring
-    this.scoringSystem.start(levelData.metadata.timeLimit)
   }
 
-  /**
-   * Start the game
-   */
-  start(): void {
-    this.isRunning = true
-    this.isPaused = false
+  removeGameObject(id: string): void {
+    this.gameObjects.delete(id)
+    const bodyId = this.entityBodyMap.get(id)
+    if (bodyId) {
+      this.physics.removeBody(bodyId)
+      this.entityBodyMap.delete(id)
+    }
   }
 
-  /**
-   * Pause the game
-   */
-  pause(): void {
-    this.isPaused = true
-    this.scoringSystem.pause()
-  }
-
-  /**
-   * Resume the game
-   */
-  resume(): void {
-    this.isPaused = false
-    this.scoringSystem.resume()
-  }
-
-  /**
-   * Stop the game
-   */
-  stop(): void {
-    this.isRunning = false
-    this.scoringSystem.end()
-  }
-
-  /**
-   * Set canvas for rendering
-   */
-  setCanvas(canvas: HTMLCanvasElement): void {
-    this.canvas = canvas
-    this.ctx = canvas.getContext('2d')
-  }
-
-  /**
-   * Get canvas reference
-   */
-  getCanvas(): HTMLCanvasElement | null {
-    return this.canvas
-  }
-
-  /**
-   * Get physics engine
-   */
-  getPhysicsEngine(): PhysicsEngine {
-    return this.physicsEngine
-  }
-
-  /**
-   * Get asset manager
-   */
-  getAssetManager(): AssetManager {
-    return this.assetManager
-  }
-
-  /**
-   * Get environment manager
-   */
-  getEnvironmentManager(): EnvironmentManager {
-    return this.environmentManager
-  }
-
-  /**
-   * Get scoring system
-   */
-  getScoringSystem(): ScoringSystem {
-    return this.scoringSystem
-  }
-
-  /**
-   * Apply force to game object
-   */
-  applyForceToObject(objectId: string, force: Vector2D): void {
-    this.physicsEngine.applyForce(objectId, force)
-  }
-
-  /**
-   * Get game object
-   */
-  getGameObject(id: string): (typeof this.gameObjects)[''] | undefined {
+  getGameObject(id: string): GameObject | undefined {
     return this.gameObjects.get(id)
   }
 
-  /**
-   * Get all game objects
-   */
-  getAllGameObjects(): Array<{ object: PlacedObject; body: PhysicsBody }> {
+  getAllGameObjects(): GameObject[] {
     return Array.from(this.gameObjects.values())
   }
 
-  /**
-   * Update game state (call every frame)
-   */
-  update(deltaTime: number = 0.016): void {
-    if (!this.isRunning || this.isPaused) return
+  // Physics interactions
+  applyForce(objectId: string, forceX: number, forceY: number): void {
+    const body = this.physics.getBody(objectId)
+    if (body) {
+      body.applyForce({ x: forceX, y: forceY })
+    }
+  }
 
-    const dt = deltaTime * this.gameSpeed
+  setVelocity(objectId: string, vx: number, vy: number): void {
+    const body = this.physics.getBody(objectId)
+    if (body) {
+      body.applyVelocity({ x: vx, y: vy })
+    }
+  }
+
+  getVelocity(objectId: string): { x: number; y: number } | undefined {
+    const body = this.physics.getBody(objectId)
+    if (body) {
+      return { x: body.velocity.x, y: body.velocity.y }
+    }
+    return undefined
+  }
+
+  // Event system
+  on(event: string, callback: Function): () => void {
+    if (!this.eventListeners.has(event)) {
+      this.eventListeners.set(event, [])
+    }
+
+    const listeners = this.eventListeners.get(event)!
+    listeners.push(callback)
+
+    // Return unsubscribe function
+    return () => {
+      const index = listeners.indexOf(callback)
+      if (index > -1) {
+        listeners.splice(index, 1)
+      }
+    }
+  }
+
+  emit(event: string, data?: any): void {
+    const listeners = this.eventListeners.get(event) || []
+    listeners.forEach((callback) => {
+      callback(data)
+    })
+  }
+
+  // State management
+  setState(state: GameStateType): void {
+    this.stateManager.setState(state)
+  }
+
+  getState(): GameStateType {
+    return this.stateManager.getState()
+  }
+
+  onStateChange(state: GameStateType, callback: Function): () => void {
+    return this.stateManager.onStateChange(state, callback)
+  }
+
+  // Game loop
+  start(): void {
+    if (this.running) return
+
+    this.running = true
+    this.lastFrameTime = performance.now()
+    this.gameLoop()
+  }
+
+  stop(): void {
+    this.running = false
+  }
+
+  private gameLoop = (): void => {
+    if (!this.running) return
+
+    const currentTime = performance.now()
+    this.deltaTime = Math.min((currentTime - this.lastFrameTime) / 1000, 0.016) // Cap at 60fps
+    this.lastFrameTime = currentTime
 
     // Update physics
-    this.physicsEngine.update()
+    this.physics.update(this.deltaTime)
 
-    // Update scoring
-    this.scoringSystem.update(dt)
-
-    // Update environment
-    this.environmentManager.updateParticles(dt)
-
-    // Update camera to follow player (optional - can be customized)
-    this.updateCamera()
-
-    this.frameTime += dt
-  }
-
-  /**
-   * Update camera position
-   */
-  private updateCamera(): void {
-    // Default: center on first spawn point or level center
-    const spawns = this.gameObjects.size > 0
-      ? Array.from(this.gameObjects.values()).filter(g => g.object.type === 'spawn')
-      : []
-
-    if (spawns.length > 0) {
-      const spawn = spawns[0]
-      this.camera.x = spawn.body.position.x - (this.canvas?.width || 800) / 2
-      this.camera.y = spawn.body.position.y - (this.canvas?.height || 600) / 2
-    }
-  }
-
-  /**
-   * Render game state
-   */
-  render(): void {
-    if (!this.ctx || !this.canvas) return
-
-    const width = this.canvas.width
-    const height = this.canvas.height
-
-    // Clear canvas
-    this.ctx.fillStyle = this.environmentManager.getSettings().ambientColor
-    this.ctx.fillRect(0, 0, width, height)
-
-    this.ctx.save()
-    this.ctx.translate(-this.camera.x * this.camera.zoom, -this.camera.y * this.camera.zoom)
-    this.ctx.scale(this.camera.zoom, this.camera.zoom)
-
-    // Draw backgrounds
-    this.environmentManager.getBackgrounds().forEach(bg => {
-      const img = this.assetManager.getSpriteImage(bg.id)
-      if (img) {
-        const parallaxX = this.camera.x * (1 - bg.parallaxFactor)
-        this.ctx!.globalAlpha = bg.opacity
-        this.ctx!.drawImage(img, parallaxX, 0, img.width * bg.scale, img.height * bg.scale)
-        this.ctx!.globalAlpha = 1
+    // Sync game objects with physics bodies
+    this.gameObjects.forEach((obj, id) => {
+      const body = this.physics.getBody(id)
+      if (body) {
+        obj.position = { x: body.position.x, y: body.position.y }
+        obj.velocity = { x: body.velocity.x, y: body.velocity.y }
+        obj.rotation = body.rotation
       }
     })
 
-    // Draw game objects
-    this.gameObjects.forEach(({ object, body }) => {
-      const img = object.properties.spriteId
-        ? this.assetManager.getSpriteImage(object.properties.spriteId)
-        : null
-
-      this.ctx!.save()
-      this.ctx!.translate(body.position.x + body.width / 2, body.position.y + body.height / 2)
-      this.ctx!.rotate(body.rotation)
-
-      if (img) {
-        this.ctx!.drawImage(
-          img,
-          -body.width / 2,
-          -body.height / 2,
-          body.width,
-          body.height
-        )
-      } else {
-        // Draw colored rectangle as fallback
-        this.ctx!.fillStyle = object.properties.color || '#4a90e2'
-        this.ctx!.fillRect(-body.width / 2, -body.height / 2, body.width, body.height)
-      }
-
-      this.ctx!.restore()
+    // Check collisions and emit events
+    const contacts = this.physics.getContacts()
+    contacts.forEach((contact) => {
+      this.emit('collision', {
+        objectA: contact.objectA,
+        objectB: contact.objectB,
+        point: contact.point,
+        normal: contact.normal,
+        depth: contact.depth,
+      })
     })
 
-    // Draw particles
-    this.environmentManager.getParticles().forEach(particle => {
-      this.ctx!.globalAlpha = particle.opacity
-      this.ctx!.fillStyle = particle.color
-      this.ctx!.save()
-      this.ctx!.translate(particle.position.x, particle.position.y)
-      this.ctx!.rotate(particle.rotation)
-      this.ctx!.fillRect(-particle.size / 2, -particle.size / 2, particle.size, particle.size)
-      this.ctx!.restore()
-      this.ctx!.globalAlpha = 1
-    })
+    // Update ECS scene
+    this.scene.update(this.deltaTime)
 
-    this.ctx.restore()
+    // Emit frame event
+    this.emit('update', { deltaTime: this.deltaTime, fps: this.fps })
+
+    requestAnimationFrame(this.gameLoop)
   }
 
-  /**
-   * Handle mouse click for interactions
-   */
-  handleClick(screenPos: Vector2D): PlacedObject | null {
-    const worldPos = {
-      x: screenPos.x / this.camera.zoom + this.camera.x,
-      y: screenPos.y / this.camera.zoom + this.camera.y,
-    }
-
-    for (const { object, body } of this.gameObjects.values()) {
-      if (
-        worldPos.x >= body.position.x &&
-        worldPos.x <= body.position.x + body.width &&
-        worldPos.y >= body.position.y &&
-        worldPos.y <= body.position.y + body.height
-      ) {
-        return object
-      }
-    }
-
-    return null
+  // Rendering information
+  getFrameTime(): number {
+    return this.deltaTime
   }
 
-  /**
-   * Set game speed
-   */
-  setGameSpeed(speed: number): void {
-    this.gameSpeed = Math.max(0, speed)
+  getFPS(): number {
+    return this.fps
   }
 
-  /**
-   * Get game speed
-   */
-  getGameSpeed(): number {
-    return this.gameSpeed
+  getCanvasSize(): { width: number; height: number } {
+    return { width: this.width, height: this.height }
   }
 
-  /**
-   * Get game state
-   */
-  getGameState(): {
-    isRunning: boolean
-    isPaused: boolean
-    score: number
-    time: string
-    combo: number
-  } {
-    return {
-      isRunning: this.isRunning,
-      isPaused: this.isPaused,
-      score: this.scoringSystem.getScore(),
-      time: this.scoringSystem.getFormattedTime(),
-      combo: this.scoringSystem.getComboCount(),
-    }
+  getBackgroundColor(): string {
+    return this.backgroundColor
   }
 
-  /**
-   * Reset game
-   */
+  // Cleanup
+  destroy(): void {
+    this.stop()
+    this.gameObjects.clear()
+    this.scene.clear()
+    this.eventListeners.clear()
+  }
+
+  // Query game state
+  getPhysicsWorld(): PhysicsWorld {
+    return this.physics
+  }
+
+  getScene(): Scene {
+    return this.scene
+  }
+
+  // Reset level
   reset(): void {
-    this.isRunning = false
-    this.isPaused = false
-    this.scoringSystem.reset()
-    if (this.levelData) {
-      this.initializeLevel(this.levelData)
-    }
+    this.gameObjects.clear()
+    this.scene.clear()
+    this.eventListeners.clear()
   }
+}
+
+// Singleton instance for easy access
+let engineInstance: GameEngine | null = null
+
+export function createGameEngine(config: GameConfig): GameEngine {
+  if (engineInstance) {
+    engineInstance.destroy()
+  }
+  engineInstance = new GameEngine(config)
+  return engineInstance
+}
+
+export function getGameEngine(): GameEngine | null {
+  return engineInstance
 }
