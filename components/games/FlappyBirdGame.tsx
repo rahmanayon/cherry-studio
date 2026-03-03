@@ -107,11 +107,17 @@ export function FlappyBirdGameComponent({ timeLimit = 120, onGameEnd }: FlappyBi
       ctx.font = 'bold 24px Arial'
       ctx.fillText(`${Math.ceil(state.timeRemaining)}s`, canvas.width - 120, 40)
 
+      // Draw level and stats
+      ctx.fillStyle = '#3b82f6'
+      ctx.font = 'bold 18px Arial'
+      ctx.fillText(`Level: ${state.level}`, 20, 80)
+      ctx.fillText(`Pipes: ${state.pipesPassed}`, 20, 110)
+
       // Draw combo
       if (state.combo > 0) {
         ctx.fillStyle = '#8b5cf6'
         ctx.font = 'bold 20px Arial'
-        ctx.fillText(`Combo: ${state.combo}`, 20, 80)
+        ctx.fillText(`Combo: ${state.combo}x`, 20, 140)
       }
 
       // Draw game over screen
@@ -123,11 +129,13 @@ export function FlappyBirdGameComponent({ timeLimit = 120, onGameEnd }: FlappyBi
         ctx.fillStyle = '#fff'
         ctx.font = 'bold 40px Arial'
         ctx.textAlign = 'center'
-        ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 50)
+        ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 80)
 
-        ctx.font = '24px Arial'
-        ctx.fillText(`Final Score: ${finalScore.score}`, canvas.width / 2, canvas.height / 2 + 20)
-        ctx.fillText(`Combo: ${finalScore.combo}`, canvas.width / 2, canvas.height / 2 + 60)
+        ctx.font = '20px Arial'
+        ctx.fillText(`Final Score: ${finalScore.score}`, canvas.width / 2, canvas.height / 2 - 20)
+        ctx.fillText(`Level: ${finalScore.level} | Pipes: ${finalScore.pipesPassed}`, canvas.width / 2, canvas.height / 2 + 20)
+        ctx.fillText(`Best Combo: ${finalScore.bestCombo}x`, canvas.width / 2, canvas.height / 2 + 60)
+        ctx.fillText(`Time Bonus: +${finalScore.timeBonus}`, canvas.width / 2, canvas.height / 2 + 100)
 
         setGameState('gameOver')
         if (onGameEnd) {

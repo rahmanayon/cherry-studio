@@ -22,6 +22,9 @@ export interface Puzzle2048State {
   gridSize: number
   moveCount: number
   bestCombo: number
+  level: number
+  targetsReached: number
+  levelTargets: number[]
 }
 
 const GRID_SIZE = 4
@@ -45,6 +48,9 @@ export class Puzzle2048Game {
       gridSize: GRID_SIZE,
       moveCount: 0,
       bestCombo: 0,
+      level: 1,
+      targetsReached: 0,
+      levelTargets: [256, 512, 1024, 2048, 4096], // Progressive targets for levels
     }
 
     // Initialize with 2 tiles
@@ -231,6 +237,21 @@ export class Puzzle2048Game {
     }
 
     this.state.tiles.push(newTile)
+    this.checkLevelMilestones()
+  }
+
+  private checkLevelMilestones(): void {
+    if (this.state.level <= this.state.levelTargets.length) {
+      const currentTarget = this.state.levelTargets[this.state.level - 1]
+      const maxTile = Math.max(...this.state.tiles.map(t => t.value))
+
+      if (maxTile >= currentTarget) {
+        this.state.level++
+        this.state.targetsReached++
+        const levelBonus = 500 * this.state.level
+        this.state.score += levelBonus
+      }
+    }
   }
 
   private checkGameOver(): void {
@@ -292,10 +313,14 @@ export class Puzzle2048Game {
     }
   }
 
-  getFinalScore(): { score: number; bestCombo: number; timeBonus: number } {
+  getFinalScore(): { score: number; level: number; targetsReached: number; bestCombo: number; timeBonus: number } {
     const timeBonus = Math.floor(this.state.timeRemaining * 5)
+    const levelBonus = (this.state.level - 1) * 100
+    const targetBonus = this.state.targetsReached * 250
     return {
-      score: this.state.score + timeBonus,
+      score: this.state.score + timeBonus + levelBonus + targetBonus,
+      level: this.state.level,
+      targetsReached: this.state.targetsReached,
       bestCombo: this.state.bestCombo,
       timeBonus,
     }

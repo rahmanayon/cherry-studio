@@ -42,6 +42,9 @@ export interface SpaceInvadersState {
   totalTime: number
   waveCount: number
   killCount: number
+  bestCombo: number
+  levelMilestones: number[] // Kill thresholds for level up
+  lastLevelUp: number
 }
 
 const GAME_WIDTH = 400
@@ -81,6 +84,9 @@ export class SpaceInvadersGame {
       totalTime: timeLimit,
       waveCount: 0,
       killCount: 0,
+      bestCombo: 0,
+      levelMilestones: [5, 15, 30, 50, 75], // Kill counts to level up
+      lastLevelUp: 0,
     }
   }
 
@@ -284,6 +290,18 @@ export class SpaceInvadersGame {
     this.state.killCount++
     this.state.combo++
 
+    if (this.state.combo > this.state.bestCombo) {
+      this.state.bestCombo = this.state.combo
+    }
+
+    // Check for level up
+    if (this.state.level <= this.state.levelMilestones.length) {
+      const nextMilestone = this.state.levelMilestones[this.state.level - 1]
+      if (this.state.killCount >= nextMilestone) {
+        this.levelUp()
+      }
+    }
+
     // Time-based multiplier
     const timeMultiplier = 1 + (this.state.timeRemaining / this.state.totalTime) * 0.5
     const comboBonus = this.state.combo * 2
@@ -291,6 +309,13 @@ export class SpaceInvadersGame {
 
     const points = Math.floor((enemy.points * timeMultiplier + comboBonus + levelBonus) * (1 + this.state.combo * 0.1))
     this.state.score += points
+  }
+
+  private levelUp(): void {
+    this.state.level++
+    this.state.lastLevelUp = this.state.killCount
+    const levelBonus = 300 * this.state.level
+    this.state.score += levelBonus
   }
 
   private checkCollision(
@@ -305,12 +330,15 @@ export class SpaceInvadersGame {
     )
   }
 
-  getFinalScore(): { score: number; level: number; kills: number; timeBonus: number } {
+  getFinalScore(): { score: number; level: number; kills: number; bestCombo: number; timeBonus: number } {
     const timeBonus = Math.floor(this.state.timeRemaining * 15)
+    const levelBonus = (this.state.level - 1) * 200
+    const comboBonus = this.state.bestCombo * 50
     return {
-      score: this.state.score + timeBonus,
+      score: this.state.score + timeBonus + levelBonus + comboBonus,
       level: this.state.level,
       kills: this.state.killCount,
+      bestCombo: this.state.bestCombo,
       timeBonus,
     }
   }

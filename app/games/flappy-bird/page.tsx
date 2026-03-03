@@ -1,18 +1,59 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { FlappyBirdGameComponent } from '@/components/games/FlappyBirdGame'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { GameStorage, GameSession } from '@/lib/games/gameStorage'
 
 export default function FlappyBirdPage() {
   const [finalScore, setFinalScore] = useState<number | null>(null)
   const [sessionScore, setSessionScore] = useState<number | null>(null)
+  const [gameLevel, setGameLevel] = useState<number>(1)
+  const [bestScore, setBestScore] = useState<number>(0)
+
+  useEffect(() => {
+    const stats = GameStorage.getStats('flappy-bird')
+    if (stats) {
+      setBestScore(stats.bestScore)
+    }
+  }, [])
 
   const handleGameEnd = (score: number, finalScore: number) => {
     setSessionScore(score)
     setFinalScore(finalScore)
+
+    // Save session
+    const session: GameSession = {
+      id: `fb-${Date.now()}`,
+      gameId: 'flappy-bird',
+      score: finalScore,
+      level: gameLevel,
+      combo: 0,
+      duration: 120000,
+      timestamp: Date.now(),
+      completed: true,
+    }
+
+    GameStorage.saveSession(session)
+
+    // Update stats
+    GameStorage.updateStats('flappy-bird', {
+      gameId: 'flappy-bird',
+      bestScore: Math.max(bestScore, finalScore),
+      highestLevel: Math.max(gameLevel, bestScore > 0 ? 1 : 0),
+      totalGamesPlayed: (GameStorage.getAllSessions('flappy-bird').length || 0) + 1,
+      lastPlayedDate: Date.now(),
+      totalTime: 0,
+      personalRecords: {
+        score: Math.max(bestScore, finalScore),
+        level: gameLevel,
+        combo: 0,
+      },
+    })
+
+    setBestScore(Math.max(bestScore, finalScore))
   }
 
   return (
@@ -27,6 +68,9 @@ export default function FlappyBirdPage() {
           </Link>
           <h1 className="text-4xl font-bold text-white mb-2">Flappy Bird</h1>
           <p className="text-slate-300">Survive 120 seconds. Avoid pipes. Maximize your score!</p>
+          {bestScore > 0 && (
+            <p className="text-game-primary font-semibold mt-2">Best Score: {bestScore.toLocaleString()}</p>
+          )}
         </div>
 
         {/* Game Component */}

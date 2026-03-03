@@ -15,6 +15,9 @@ export interface FlappyBirdState {
   pipeGap: number
   pipeWidth: number
   groundHeight: number
+  level: number
+  pipesPassed: number
+  bestCombo: number
 }
 
 export interface Pipe {
@@ -55,6 +58,9 @@ export class FlappyBirdGame {
       pipeGap: PIPE_GAP,
       pipeWidth: PIPE_WIDTH,
       groundHeight: GROUND_HEIGHT,
+      level: 1,
+      pipesPassed: 0,
+      bestCombo: 0,
     }
   }
 
@@ -170,14 +176,33 @@ export class FlappyBirdGame {
   }
 
   private scorePoint(): void {
+    this.state.pipesPassed++
+
+    // Level up every 5 pipes passed
+    if (this.state.pipesPassed % 5 === 0) {
+      this.levelUp()
+    }
+
     // Base score depends on remaining time (urgency multiplier)
     const timeMultiplier = 1 + (this.state.timeRemaining / this.state.totalTime) * 0.5
+    const levelMultiplier = 1 + (this.state.level - 1) * 0.3
 
     this.state.combo++
+    if (this.state.combo > this.state.bestCombo) {
+      this.state.bestCombo = this.state.combo
+    }
+
     const comboBonus = Math.floor(this.state.combo * 1.1)
-    const points = Math.floor(10 * timeMultiplier + comboBonus)
+    const levelBonus = (this.state.level - 1) * 5
+    const points = Math.floor((10 * timeMultiplier * levelMultiplier + comboBonus + levelBonus) * (1 + this.state.combo * 0.1))
 
     this.state.score += points
+  }
+
+  private levelUp(): void {
+    this.state.level++
+    // Increase difficulty: reduce pipe gap and increase pipe speed
+    this.state.pipeGap = Math.max(90, PIPE_GAP - this.state.level * 5)
   }
 
   resetCombo(): void {
@@ -192,11 +217,14 @@ export class FlappyBirdGame {
     // For tournament use
   }
 
-  getFinalScore(): { score: number; combo: number; timeBonus: number } {
+  getFinalScore(): { score: number; level: number; pipesPassed: number; bestCombo: number; timeBonus: number } {
     const timeBonus = Math.floor(this.state.timeRemaining * 10)
+    const levelBonus = (this.state.level - 1) * 50
     return {
-      score: this.state.score + timeBonus,
-      combo: this.state.combo,
+      score: this.state.score + timeBonus + levelBonus,
+      level: this.state.level,
+      pipesPassed: this.state.pipesPassed,
+      bestCombo: this.state.bestCombo,
       timeBonus,
     }
   }
