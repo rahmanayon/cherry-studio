@@ -1,212 +1,191 @@
 'use client'
 
-import React, { useState } from 'react'
+import React from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
-interface GameTemplate {
-  id: string
-  name: string
-  description: string
-  difficulty: 'easy' | 'medium' | 'hard'
-  bestscore: number
-  timesPlayed: number
-  icon: string
-}
-
-export default function Dashboard() {
-  const [games, setGames] = useState<GameTemplate[]>([
-    {
-      id: '1',
-      name: 'Platform Explorer',
-      description: 'Navigate through challenging platforms to reach the goal',
-      difficulty: 'medium',
-      bestscore: 5240,
-      timesPlayed: 12,
-      icon: '🏃',
-    },
-    {
-      id: '2',
-      name: 'Obstacle Runner',
-      description: 'Dodge obstacles and collect coins in this fast-paced level',
-      difficulty: 'hard',
-      bestscore: 8920,
-      timesPlayed: 23,
-      icon: '⚡',
-    },
-    {
-      id: '3',
-      name: 'Collectibles Quest',
-      description: 'Gather all collectibles before time runs out',
-      difficulty: 'easy',
-      bestscore: 3450,
-      timesPlayed: 8,
-      icon: '💎',
-    },
-  ])
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'easy':
-        return 'bg-green-500/20 text-green-400 border-green-500/50'
-      case 'medium':
-        return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50'
-      case 'hard':
-        return 'bg-red-500/20 text-red-400 border-red-500/50'
-      default:
-        return 'bg-slate-500/20 text-slate-400 border-slate-500/50'
-    }
-  }
-
+export default function Home() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-      {/* Header */}
-      <header className="sticky top-0 z-50 backdrop-blur-md bg-black/40 border-b border-slate-800">
-        <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              Game Hub
-            </h1>
-            <p className="text-slate-400 text-sm mt-1">Advanced Game Development Framework</p>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <Link href="/builder">
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                Create Level
-              </Button>
+    <main className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-950">
+      {/* Navigation */}
+      <nav className="border-b border-slate-700 bg-black/30 backdrop-blur-sm">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-white">DCB Tournament</h1>
+          <div className="flex gap-4">
+            <Link href="/games">
+              <Button variant="outline">Games</Button>
             </Link>
-
-            <Link href="/assets">
-              <Button variant="outline">
-                Assets
-              </Button>
+            <Link href="/leaderboard">
+              <Button className="gradient-gaming text-white">Leaderboard</Button>
             </Link>
           </div>
         </div>
-      </header>
+      </nav>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-12">
-        {/* Featured Section */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold text-white mb-6">Featured Games</h2>
+      {/* Hero Section */}
+      <section className="max-w-6xl mx-auto px-6 py-16 text-center">
+        <div className="mb-8">
+          <h2 className="text-6xl font-bold text-white mb-4">
+            <span className="gradient-gaming bg-clip-text text-transparent">Weekly Game Tournament</span>
+          </h2>
+          <p className="text-xl text-slate-300 mb-8">
+            Challenge yourself in three arcade games. Compete for the top spot on the global leaderboard.
+          </p>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {games.map((game) => (
-              <Card
-                key={game.id}
-                className="bg-slate-800/50 border-slate-700 hover:border-blue-500 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20 group overflow-hidden"
-              >
-                {/* Card Header */}
-                <div className="bg-gradient-to-r from-slate-700 to-slate-800 p-6 group-hover:from-blue-600/20 group-hover:to-purple-600/20 transition-colors">
-                  <div className="flex items-start justify-between mb-4">
-                    <span className="text-4xl">{game.icon}</span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getDifficultyColor(game.difficulty)}`}>
-                      {game.difficulty}
-                    </span>
-                  </div>
-
-                  <h3 className="text-xl font-bold text-white mb-2">{game.name}</h3>
-                  <p className="text-sm text-slate-300">{game.description}</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          {/* Flappy Bird Card */}
+          <Card className="glass-effect border-blue-500/30 hover:border-blue-500/60 transition-colors">
+            <CardHeader>
+              <div className="text-6xl mb-4">🐦</div>
+              <CardTitle className="text-white text-2xl">Flappy Bird</CardTitle>
+              <CardDescription>Navigate through pipes with precision timing</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 mb-6">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Duration</span>
+                  <span className="text-blue-400 font-semibold">120 seconds</span>
                 </div>
-
-                {/* Card Stats */}
-                <div className="p-6 border-t border-slate-700">
-                  <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div>
-                      <p className="text-xs text-slate-400 mb-1">Best Score</p>
-                      <p className="text-2xl font-bold text-blue-400">
-                        {game.bestscore.toLocaleString()}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 mb-1">Times Played</p>
-                      <p className="text-2xl font-bold text-purple-400">{game.timesPlayed}</p>
-                    </div>
-                  </div>
-
-                  <Link href={`/game/${game.id}`}>
-                    <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                      Play Game
-                    </Button>
-                  </Link>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Difficulty</span>
+                  <span className="text-yellow-400 font-semibold">Medium</span>
                 </div>
-              </Card>
-            ))}
-          </div>
-        </section>
+              </div>
+              <Link href="/games/flappy-bird" className="block">
+                <Button className="w-full gradient-gaming text-white hover:opacity-90">Play Now</Button>
+              </Link>
+            </CardContent>
+          </Card>
 
-        {/* Framework Features */}
-        <section>
-          <h2 className="text-2xl font-bold text-white mb-6">Framework Capabilities</h2>
+          {/* 2048 Puzzle Card */}
+          <Card className="glass-effect border-purple-500/30 hover:border-purple-500/60 transition-colors">
+            <CardHeader>
+              <div className="text-6xl mb-4">🧩</div>
+              <CardTitle className="text-white text-2xl">2048 Puzzle</CardTitle>
+              <CardDescription>Merge tiles to reach 2048 and beyond</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 mb-6">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Duration</span>
+                  <span className="text-purple-400 font-semibold">180 seconds</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Difficulty</span>
+                  <span className="text-yellow-400 font-semibold">Medium</span>
+                </div>
+              </div>
+              <Link href="/games/2048-puzzle" className="block">
+                <Button className="w-full gradient-gaming text-white hover:opacity-90">Play Now</Button>
+              </Link>
+            </CardContent>
+          </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Space Invaders Card */}
+          <Card className="glass-effect border-red-500/30 hover:border-red-500/60 transition-colors">
+            <CardHeader>
+              <div className="text-6xl mb-4">👾</div>
+              <CardTitle className="text-white text-2xl">Space Invaders</CardTitle>
+              <CardDescription>Defend against enemy waves and maximize kills</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 mb-6">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Duration</span>
+                  <span className="text-red-400 font-semibold">120 seconds</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Difficulty</span>
+                  <span className="text-red-400 font-semibold">Hard</span>
+                </div>
+              </div>
+              <Link href="/games/space-invaders" className="block">
+                <Button className="w-full gradient-gaming text-white hover:opacity-90">Play Now</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Info Section */}
+        <Card className="glass-effect border-slate-600 max-w-2xl mx-auto mb-12">
+          <CardHeader>
+            <CardTitle className="text-white text-2xl">How It Works</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6 text-left">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center">
+                <div className="text-4xl font-bold text-game-primary mb-2">1</div>
+                <h3 className="text-white font-semibold mb-2">Choose a Game</h3>
+                <p className="text-sm text-slate-300">Select from three unique arcade challenges</p>
+              </div>
+              <div className="text-center">
+                <div className="text-4xl font-bold text-game-accent mb-2">2</div>
+                <h3 className="text-white font-semibold mb-2">Play & Score</h3>
+                <p className="text-sm text-slate-300">Master the mechanics and rack up points</p>
+              </div>
+              <div className="text-center">
+                <div className="text-4xl font-bold text-game-success mb-2">3</div>
+                <h3 className="text-white font-semibold mb-2">Climb Ranks</h3>
+                <p className="text-sm text-slate-300">Compete on the global leaderboard</p>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-700 pt-6">
+              <h4 className="text-white font-semibold mb-3">Scoring System</h4>
+              <ul className="space-y-2 text-sm text-slate-300">
+                <li className="flex items-start gap-3">
+                  <span className="text-game-primary">•</span>
+                  <span>
+                    <strong>Time Multiplier:</strong> Points increase as time dwindles - faster play = higher scores
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-game-primary">•</span>
+                  <span>
+                    <strong>Combo Streaks:</strong> Chain successful actions for exponential multipliers
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-game-primary">•</span>
+                  <span>
+                    <strong>Time Bonus:</strong> Remaining seconds add to your final score
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Link href="/games">
+          <Button size="lg" className="gradient-gaming text-white text-lg px-8 py-6 h-auto">
+            Start Tournament →
+          </Button>
+        </Link>
+      </section>
+
+      {/* Features Section */}
+      <section className="bg-black/40 py-16 mt-16">
+        <div className="max-w-6xl mx-auto px-6">
+          <h3 className="text-3xl font-bold text-white mb-8 text-center">Features</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              {
-                title: 'Advanced Physics Engine',
-                description: 'Realistic collision detection with customizable gravity and friction',
-                icon: '⚙️',
-              },
-              {
-                title: 'Countdown Scoring System',
-                description: 'Time-based scoring with multipliers for added urgency',
-                icon: '⏱️',
-              },
-              {
-                title: 'Level Builder Tool',
-                description: 'Intuitive drag-and-drop interface for level creation',
-                icon: '🏗️',
-              },
-              {
-                title: 'Asset Management',
-                description: 'Optimized sprite and audio loading with caching',
-                icon: '🎨',
-              },
-              {
-                title: 'Immersive Environments',
-                description: 'Parallax scrolling, particle effects, and environmental physics',
-                icon: '🌍',
-              },
-              {
-                title: 'Modular Architecture',
-                description: 'Entity-Component System for scalable game development',
-                icon: '🔧',
-              },
-            ].map((feature, index) => (
-              <Card
-                key={index}
-                className="bg-slate-800/30 border-slate-700 hover:border-slate-600 transition-colors p-4"
-              >
-                <div className="text-2xl mb-2">{feature.icon}</div>
-                <h3 className="font-semibold text-white mb-1">{feature.title}</h3>
-                <p className="text-sm text-slate-400">{feature.description}</p>
+              { title: 'Real-time Scoring', icon: '⚡' },
+              { title: 'Global Leaderboard', icon: '🌍' },
+              { title: 'Weekly Tournaments', icon: '🏆' },
+              { title: 'Skill Progression', icon: '📈' },
+            ].map(feature => (
+              <Card key={feature.title} className="glass-effect border-slate-600">
+                <CardContent className="p-6 text-center">
+                  <div className="text-4xl mb-3">{feature.icon}</div>
+                  <h4 className="text-white font-semibold">{feature.title}</h4>
+                </CardContent>
               </Card>
             ))}
           </div>
-        </section>
-
-        {/* Quick Stats */}
-        <section className="mt-12 grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Total Games', value: '3' },
-            { label: 'Total Score', value: '17,610' },
-            { label: 'Total Playtime', value: '43 hrs' },
-            { label: 'Highest Streak', value: '12 days' },
-          ].map((stat, index) => (
-            <Card
-              key={index}
-              className="bg-gradient-to-br from-blue-600/10 to-purple-600/10 border-slate-700 p-6 text-center"
-            >
-              <p className="text-sm text-slate-400 mb-2">{stat.label}</p>
-              <p className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                {stat.value}
-              </p>
-            </Card>
-          ))}
-        </section>
-      </div>
+        </div>
+      </section>
     </main>
   )
 }
