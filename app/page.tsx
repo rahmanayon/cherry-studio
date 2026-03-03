@@ -1,7 +1,5 @@
-"use client"
+import { Dashboard } from '@/components/Dashboard'
 
-import FlappyBird from "../flappy-bird"
-
-export default function SyntheticV0PageForDeployment() {
-  return <FlappyBird />
+export default function Home() {
+  return <Dashboard />
 }
